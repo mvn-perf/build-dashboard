@@ -1,0 +1,46 @@
+# Alternative to the gh-pages branch: publish through the GitHub Pages
+# "GitHub Actions" source (actions/deploy-pages). The action then only writes the
+# site to a directory; the previous history is seeded from the live site so the
+# trends keep growing across deployments.
+#
+# One-time repository setup: Settings → Pages → Source: "GitHub Actions".
+name: Build dashboard (Pages artifact)
+
+on:
+  workflow_run:
+    workflows: ['CI']
+    types: [completed]
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  dashboard:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Build the dashboard
+        uses: mvn-perf/build-dashboard@v1
+        with:
+          publish: false
+          output-dir: site
+          # Seed data/history.json + the linked reports from what is currently live.
+          seed-url: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v5

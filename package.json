@@ -1,0 +1,16 @@
+{
+  "name": "build-dashboard",
+  "version": "0.1.0",
+  "description": "GitHub Action publishing an HTML dashboard of workflow/job/step durations over time, per-run timelines and mvn-lens Maven build reports",
+  "private": true,
+  "license": "Apache-2.0",
+  "repository": "github:mvn-perf/build-dashboard",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test",
+    "lint": "node scripts/check-syntax.js",
+    "demo": "node scripts/demo.js"
+  }
+}

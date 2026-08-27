@@ -1,0 +1,6 @@
+node_modules/
+/build-dashboard-site/
+/tmp/
+/.tmp/
+*.log
+.DS_Store

@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  test:
+    name: Tests · ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+      - run: node --version
+      - name: Unit tests
+        run: npm test
+      - name: Syntax check (action sources run un-bundled on the runner's Node; 20 is the floor)
+        run: npm run lint
+
+  # The action, run against this very repository (no publish): proves the API
+  # path works with a real GITHUB_TOKEN and uploads the site for inspection.
+  # Not on pull requests from forks: their artifacts are untrusted and the
+  # dashboard skips fork runs anyway.
+  self-test:
+    name: Dry run on this repository
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - uses: actions/checkout@v7
+      - name: Attach a sample mvn-lens report to this step's predecessor
+        uses: ./mvn-lens
+        with:
+          report: test/fixtures/sample-report/report.html
+          label: sample
+          if-no-files-found: ignore
+      - name: Build dashboard (dry run)
+        id: dash
+        uses: ./
+        with:
+          publish: false
+          output-dir: dashboard-site      # not site/ — that is this repo's front-end source
+          include-self: true
+          max-runs: 50
+      - run: |
+          echo "runs: ${{ steps.dash.outputs.runs-total }}, reports: ${{ steps.dash.outputs.reports-collected }}"
+          test -f dashboard-site/index.html
+          test -f dashboard-site/data/history.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: build-dashboard-site
+          path: dashboard-site
+          retention-days: 7

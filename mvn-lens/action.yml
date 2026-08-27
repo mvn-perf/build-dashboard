@@ -1,0 +1,107 @@
+name: 'Attach mvn-lens report'
+description: >-
+  Uploads the mvn-lens report produced by the preceding Maven step as an artifact
+  the build dashboard links from that step (and trends the Maven build time of).
+author: mvn-perf
+branding:
+  icon: search
+  color: blue
+
+inputs:
+  report:
+    description: >-
+      Path(s) or glob(s) of the mvn-lens report(s) to attach (newline- or
+      comma-separated). The first one is the primary report of the step.
+    required: false
+    default: target/mvnlens/report.html
+  step-name:
+    description: >-
+      Name of the step that ran Maven. Defaults to the step that was running when
+      the report was written (normally the step right before this one).
+    required: false
+    default: ''
+  job-name:
+    description: >-
+      Display name of the current job, for jobs that set a custom name (matrix
+      expressions expand fine, e.g. "JDK <matrix.java>"). Without it the job is
+      found through the runner name, then the job key.
+    required: false
+    default: ''
+  label:
+    description: >-
+      Optional label distinguishing several Maven builds of the same job/step
+      (e.g. a matrix leg or a scenario name). Becomes part of the series identity
+      on the dashboard's Maven pages.
+    required: false
+    default: ''
+  github-token:
+    description: 'Token used to identify the current job and step (needs the "actions: read" permission).'
+    required: false
+    default: ${{ github.token }}
+  include-model:
+    description: Also upload the model.json sidecar next to each report.
+    required: false
+    default: 'false'
+  if-no-files-found:
+    description: 'What to do when no report exists: warn (default), error or ignore.'
+    required: false
+    default: warn
+  retention-days:
+    description: Artifact retention in days (empty = repository default). The dashboard copies reports into its site, so a short retention is fine once it runs regularly.
+    required: false
+    default: ''
+  artifact-prefix:
+    description: Artifact name prefix; must match the dashboard action's mvn-lens-artifact-prefix.
+    required: false
+    default: 'mvn-lens--'
+
+outputs:
+  artifact-name:
+    description: Name of the uploaded artifact (empty when no report was found).
+    value: ${{ steps.prepare.outputs.artifact-name }}
+  found:
+    description: '"true" when at least one report was found and uploaded.'
+    value: ${{ steps.prepare.outputs.found }}
+  maven-total-ms:
+    description: Maven "Total time" of the primary report in milliseconds (empty when unknown).
+    value: ${{ steps.prepare.outputs.maven-total-ms }}
+  job-id:
+    description: Id of the current job as resolved through the API (empty when unresolved).
+    value: ${{ steps.prepare.outputs.job-id }}
+  step-name:
+    description: Name of the step the report was attributed to.
+    value: ${{ steps.prepare.outputs.step-name }}
+
+runs:
+  using: composite
+  steps:
+    - name: Stage mvn-lens report
+      id: prepare
+      shell: bash
+      env:
+        INPUT_REPORT: ${{ inputs.report }}
+        INPUT_STEP_NAME: ${{ inputs.step-name }}
+        INPUT_JOB_NAME: ${{ inputs.job-name }}
+        INPUT_LABEL: ${{ inputs.label }}
+        INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
+        INPUT_INCLUDE_MODEL: ${{ inputs.include-model }}
+        INPUT_IF_NO_FILES_FOUND: ${{ inputs.if-no-files-found }}
+        INPUT_ARTIFACT_PREFIX: ${{ inputs.artifact-prefix }}
+      run: node "${{ github.action_path }}/attach.js"
+
+    - name: Upload mvn-lens report artifact
+      if: ${{ steps.prepare.outputs.found == 'true' && inputs.retention-days != '' }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ steps.prepare.outputs.artifact-name }}
+        path: ${{ steps.prepare.outputs.path }}
+        if-no-files-found: error
+        retention-days: ${{ inputs.retention-days }}
+
+    - name: Upload mvn-lens report artifact
+      if: ${{ steps.prepare.outputs.found == 'true' && inputs.retention-days == '' }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ steps.prepare.outputs.artifact-name }}
+        path: ${{ steps.prepare.outputs.path }}
+        if-no-files-found: error

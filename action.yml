@@ -1,0 +1,177 @@
+name: 'Build dashboard'
+description: >-
+  Publishes an HTML dashboard of your GitHub Actions builds: workflow and step
+  durations over time, a per-run timeline of jobs and steps, and — for Maven
+  steps profiled with mvn-lens — the build-time trend and every report.
+author: mvn-perf
+branding:
+  icon: bar-chart-2
+  color: blue
+
+inputs:
+  github-token:
+    description: >-
+      Token with "actions: read" (to list runs, jobs and artifacts) and, when
+      publishing to a branch, "contents: write". "pages: read" is optional (site
+      URL lookup).
+    required: false
+    default: ${{ github.token }}
+  repository:
+    description: Repository to chart ("owner/name"). Defaults to the current one.
+    required: false
+    default: ${{ github.repository }}
+
+  # ---- what to collect -------------------------------------------------------
+  workflows:
+    description: >-
+      Workflows to include (newline- or comma-separated names, file names such as
+      ci.yml, paths or ids). Empty = every workflow of the repository.
+    required: false
+    default: ''
+  exclude-workflows:
+    description: Workflows to leave out (same syntax as `workflows`).
+    required: false
+    default: ''
+  include-self:
+    description: Also chart the workflow this action runs in (excluded by default).
+    required: false
+    default: 'false'
+  branches:
+    description: Only runs of these branches (newline- or comma-separated). Empty = all branches (the dashboard has a branch filter).
+    required: false
+    default: ''
+  events:
+    description: Only runs triggered by these events (push, pull_request, schedule, workflow_dispatch…). Empty = all.
+    required: false
+    default: ''
+  max-runs:
+    description: Most recent runs kept per workflow (older runs are dropped from the history).
+    required: false
+    default: '200'
+  lookback-days:
+    description: Only look for new runs created within the last N days (the history keeps older ones).
+    required: false
+    default: '90'
+  run-id:
+    description: >-
+      Run id(s) to (re)process even when unchanged or outside `lookback-days`
+      (the workflow and fork filters still apply). Defaults to the run that
+      triggered a `workflow_run` event.
+    required: false
+    default: ''
+  include-fork-runs:
+    description: >-
+      Also collect runs whose head repository is a fork (pull requests from
+      forks). Off by default: such runs can upload arbitrary artifacts, and
+      report HTML is published on the Pages origin.
+    required: false
+    default: 'false'
+  force-refresh:
+    description: Re-fetch every run in range even when the history already has it.
+    required: false
+    default: 'false'
+  concurrency:
+    description: Parallel API requests while fetching run details (1–16).
+    required: false
+    default: '4'
+
+  # ---- mvn-lens reports ------------------------------------------------------
+  mvn-lens-artifact-prefix:
+    description: Artifacts whose name starts with this prefix are mvn-lens reports (see the `mvn-lens` sub-action). Empty disables report collection.
+    required: false
+    default: 'mvn-lens--'
+  download-reports:
+    description: Download mvn-lens report artifacts (set to false to only chart durations).
+    required: false
+    default: 'true'
+  keep-reports:
+    description: >-
+      Number of most recent runs per workflow whose mvn-lens HTML reports are kept
+      on the site. Older runs keep their Maven timings for the trend charts but
+      lose the HTML (each report is ~1–2 MB).
+    required: false
+    default: '50'
+
+  # ---- publishing ------------------------------------------------------------
+  publish:
+    description: Commit and push the site to `publish-branch` (set to false to only write `output-dir`).
+    required: false
+    default: 'true'
+  publish-branch:
+    description: Branch that serves the site (GitHub Pages "Deploy from a branch"). Never the default branch when force-orphan is on.
+    required: false
+    default: gh-pages
+  publish-dir:
+    description: Directory inside the branch to write the site to (empty = branch root).
+    required: false
+    default: ''
+  force-orphan:
+    description: >-
+      Replace the branch history with a single commit on every publish (keeps the
+      repository small; reports are not versioned). The push is force-with-lease
+      on the tip that was checked out, so concurrent publishes are never lost.
+      Set to false to append commits.
+    required: false
+    default: 'true'
+  commit-message:
+    description: Commit message used when publishing.
+    required: false
+    default: 'Update build dashboard'
+  commit-user-name:
+    description: Committer name (default github-actions[bot]).
+    required: false
+    default: ''
+  commit-user-email:
+    description: Committer e-mail (default the github-actions[bot] address).
+    required: false
+    default: ''
+  output-dir:
+    description: >-
+      Where to write the site when not publishing to a branch (the previous site
+      in that directory is the history to extend). When publishing to a branch,
+      setting this also copies the published site there.
+    required: false
+    default: ''
+  history-file:
+    description: Explicit path of the history.json to load (default `<site>/data/history.json`).
+    required: false
+    default: ''
+  seed-url:
+    description: >-
+      When not publishing to a branch and `output-dir` holds no history yet, fetch
+      `data/history.json` (and the reports it links) from this live site URL
+      first — keeps the history across `actions/deploy-pages` deployments.
+    required: false
+    default: ''
+  site-url:
+    description: Public URL of the site (used in the job summary). Derived from GitHub Pages when possible.
+    required: false
+    default: ''
+  title:
+    description: Dashboard title.
+    required: false
+    default: ''
+  dry-run:
+    description: Build everything but do not push.
+    required: false
+    default: 'false'
+
+outputs:
+  site-dir:
+    description: Local directory holding the generated site.
+  site-url:
+    description: Public URL of the site, when it could be determined.
+  runs-processed:
+    description: Number of runs fetched (new or changed) in this invocation.
+  runs-total:
+    description: Number of runs in the history after this invocation.
+  reports-collected:
+    description: Number of mvn-lens report files collected in this invocation.
+  published:
+    description: '"true" when a commit was pushed.'
+  commit-sha:
+    description: SHA of the published commit (empty when nothing was pushed).
+
+runs:
+  using: node24
+  main: src/main.js

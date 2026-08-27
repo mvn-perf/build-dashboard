@@ -1,0 +1,50 @@
+# Publishes the build dashboard to GitHub Pages (branch gh-pages) after every CI
+# run, nightly, and on demand. Copy to .github/workflows/build-dashboard.yml.
+#
+# One-time repository setup:
+#   Settings → Pages → Build and deployment → Source: "Deploy from a branch",
+#   Branch: gh-pages / (root). The first run of this workflow creates the branch.
+name: Build dashboard
+
+on:
+  workflow_run:
+    # The workflows whose runs feed the dashboard — the dashboard refreshes as
+    # soon as one of them completes (the triggering run is always re-fetched).
+    workflows: ['CI', 'Nightly perf']
+    types: [completed]
+  schedule:
+    - cron: '17 3 * * *'   # daily catch-up (runs older than the last trigger, pruning, expired artifacts)
+  workflow_dispatch:
+    inputs:
+      force-refresh:
+        description: Re-fetch every run in range
+        type: boolean
+        default: false
+
+permissions:
+  actions: read      # list runs, jobs and artifacts; download mvn-lens report artifacts
+  contents: write    # push the site to the gh-pages branch
+  # pages: read      # optional: lets the action look up the real Pages URL (custom domains) for its summary
+
+# Never publish twice at the same time (the site is a single branch).
+concurrency:
+  group: build-dashboard
+  cancel-in-progress: false
+
+jobs:
+  dashboard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build and publish the dashboard
+        id: dashboard
+        uses: mvn-perf/build-dashboard@v1
+        with:
+          # workflows: 'CI, Nightly perf'   # default: every workflow of the repository
+          max-runs: 300                     # per workflow, kept in the history
+          keep-reports: 60                  # runs per workflow whose mvn-lens HTML reports stay on the site
+          publish-branch: gh-pages
+          force-refresh: ${{ inputs.force-refresh || false }}
+
+      - name: Where is it?
+        run: |
+          echo "Dashboard: ${{ steps.dashboard.outputs.site-url }} (${{ steps.dashboard.outputs.runs-total }} runs)"

@@ -1,0 +1,37 @@
+# Dogfood: the dashboard of this repository's own CI, published to gh-pages.
+# Settings → Pages → Source "Deploy from a branch", branch gh-pages, folder /(root).
+name: Build dashboard
+
+on:
+  workflow_run:
+    workflows: ['CI']
+    types: [completed]
+  schedule:
+    - cron: '23 4 * * *'
+  workflow_dispatch:
+    inputs:
+      force-refresh:
+        description: Re-fetch every run in range
+        type: boolean
+        default: false
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: build-dashboard
+  cancel-in-progress: false
+
+jobs:
+  dashboard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build and publish
+        id: dashboard
+        uses: ./
+        with:
+          workflows: CI
+          force-refresh: ${{ inputs.force-refresh || false }}
+      - run: echo "Published to ${{ steps.dashboard.outputs.site-url }}"

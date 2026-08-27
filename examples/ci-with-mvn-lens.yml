@@ -1,0 +1,74 @@
+# A Maven CI workflow whose build step is profiled by mvn-lens
+# (https://github.com/mvn-perf/mvn-lens): the report produced by the extension
+# is attached to the "Build with Maven" step, so the build dashboard links it
+# from the run timeline and trends the Maven build time across runs.
+#
+# mvn-lens itself is enabled by the project's .mvn/extensions.xml:
+#
+#   <extensions xmlns="http://maven.apache.org/EXTENSIONS/1.2.0">
+#     <extension>
+#       <groupId>io.github.mvn-perf</groupId>
+#       <artifactId>mvn-lens-extension</artifactId>
+#       <version>0.1.0</version>
+#     </extension>
+#   </extensions>
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+  actions: read     # lets the mvn-lens step identify its own job/step through the API
+
+jobs:
+  build:
+    name: JDK ${{ matrix.java }} · ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        java: ['17', '21']
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up JDK ${{ matrix.java }}
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+          cache: maven
+
+      - name: Build with Maven
+        run: mvn -B -ntp verify
+
+      # Right after the Maven step, even when it failed: the report of a failed
+      # build is the one you want to look at. The step it belongs to is detected
+      # automatically (the step that was running when the report was written);
+      # pass `step-name:` to override. Jobs with a custom `name:` pass it as
+      # `job-name:` so the step can identify itself unambiguously.
+      - name: Attach mvn-lens report
+        if: always()
+        uses: mvn-perf/build-dashboard/mvn-lens@v1
+        with:
+          report: target/mvnlens/report.html
+          job-name: JDK ${{ matrix.java }} · ${{ matrix.os }}
+          # step-name: Build with Maven
+          # label: ${{ matrix.os }}          # only needed to split several Maven runs of ONE step
+
+      # A second, differently-labelled Maven run of the same job gets its own trend.
+      - name: Integration tests
+        if: matrix.os == 'ubuntu-latest' && matrix.java == '21'
+        run: mvn -B -ntp -Prun-its install
+
+      - name: Attach mvn-lens report (ITs)
+        if: always() && matrix.os == 'ubuntu-latest' && matrix.java == '21'
+        uses: mvn-perf/build-dashboard/mvn-lens@v1
+        with:
+          report: target/mvnlens/report.html
+          job-name: JDK ${{ matrix.java }} · ${{ matrix.os }}
+          step-name: Integration tests
+          label: integration tests
