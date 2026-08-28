@@ -35,7 +35,7 @@ test('setOutput writes heredoc-style records to GITHUB_OUTPUT', () => {
     util.setOutput('site-url', 'https://x/\nsecond line');
   } finally { delete process.env.GITHUB_OUTPUT; }
   const s = fs.readFileSync(file, 'utf8');
-  assert.match(s, /^site-url<<ghadelimiter_\w+\r?\nhttps:\/\/x\/\r?\nsecond line\r?\nghadelimiter_\w+/);
+  assert.match(s, /^site-url<<ghadelimiter_[\w-]+\r?\nhttps:\/\/x\/\r?\nsecond line\r?\nghadelimiter_[\w-]+/);
 });
 
 test('glob supports **, * and ? and literal paths', () => {

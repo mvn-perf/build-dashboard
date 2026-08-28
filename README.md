@@ -6,9 +6,10 @@
 > [mvn-lens](https://github.com/mvn-perf/mvn-lens) — the **Maven build-time trend**
 > and a link to **every mvn-lens report**, straight from the step that produced it.
 
-Zero dependencies (plain Node ≥ 20, runs on the runner's Node 24), one
-self-contained `index.html`, history that outlives GitHub's 90-day log/artifact
-retention.
+Plain Node ≥ 20 (runs on the runner's Node 24), a single runtime dependency —
+GitHub's own [`@actions/core`](https://github.com/actions/toolkit/tree/main/packages/core),
+bundled, so nothing is installed on the runner — one self-contained
+`index.html`, history that outlives GitHub's 90-day log/artifact retention.
 
 ## What you get
 
@@ -200,24 +201,38 @@ with `totalMs`, `wallMs`, `cpuMs`, `gcMs`, `c2Ms`, `downloadMs`, modules, …).
 ## Development
 
 ```bash
-npm test                  # node:test suite (API client, zip, mvn-lens parsing, collector, site, git publishing, attach step)
-npm run lint              # syntax check of everything that runs un-bundled on the runner
+npm ci                    # @actions/core (runtime) and esbuild (build tool)
+npm test                  # node:test suite (API client, zip, mvn-lens parsing, collector, site, git publishing, attach step, dist bundles)
+npm run build             # regenerates dist/ (index.js, attach.js, licenses.txt) — commit it together with the change
+npm run lint              # sources and bundles parse on Node 20; the action manifests point at existing scripts
 node scripts/demo.js      # a synthetic dashboard in .tmp/demo-site (real reports if ../mvn-lens has built ITs)
 
-# a real dry run against any repository you can read
+# a real dry run against any repository you can read (node dist/index.js runs the bundle instead)
 GITHUB_TOKEN=$(gh auth token) INPUT_REPOSITORY=mvn-perf/mvn-lens INPUT_PUBLISH=false \
 INPUT_OUTPUT_DIR=.tmp/site INPUT_MAX_RUNS=30 node src/main.js
 ```
 
-The action runs straight from `src/` on the runner's Node (`using: node24`; the
-code needs nothing newer than Node 20) — there is no build step, no
-`node_modules`, nothing to bundle. Chart.js 4.4.6 (MIT) is vendored in
+The runner executes `dist/index.js` (`using: node24`; the code needs nothing
+newer than Node 20) and the `mvn-lens` composite step runs `dist/attach.js`.
+Both are [esbuild](https://esbuild.github.io) bundles of `src/` and `mvn-lens/`
+plus the one runtime dependency, GitHub's
+[`@actions/core`](https://github.com/actions/toolkit/tree/main/packages/core)
+(inputs, outputs, workflow commands, job summary — MIT; it brings
+`@actions/exec`, `@actions/io`, `@actions/http-client`, `tunnel` and `undici`,
+all MIT, listed with their license texts in `dist/licenses.txt` and in
+[NOTICE](NOTICE)). Nothing is installed on the runner. The bundles are committed
+and left unminified so that what runs with your token stays readable; CI fails
+when `dist/` does not match the sources, so run `npm run build` after changing
+anything under `src/` or `mvn-lens/`. `@actions/core` stays on the 2.x line: 3.x
+is ESM-only and this code base is CommonJS. Chart.js 4.4.6 (MIT) is vendored in
 `site/vendor/` (see `site/vendor/THIRD_PARTY.md`).
 
 ## Versions
 
 The examples reference `@v1`; until that tag exists on `mvn-perf/build-dashboard`,
-pin a commit or use `@main`. Releases follow semver with a moving `v1` tag.
+pin a commit or use `@main`. Releases follow semver with a moving `v1` tag; a
+tag always points at a commit whose `dist/` was built from its sources (CI
+checks that on every push and pull request).
 
 ## Requirements & limits
 

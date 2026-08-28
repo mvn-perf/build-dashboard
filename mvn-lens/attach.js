@@ -114,7 +114,7 @@ async function main() {
   const where = located.job ? `${located.job.name}${located.step ? ' › ' + located.step.name : ''}` : (ctx.jobName || ctx.jobKey || 'unknown job');
   log(`mvn-lens: ${files.length} report(s) staged as artifact "${artifactName}" for ${where} (${located.how})`);
   if (primary) log(`mvn-lens: Maven ${primary.goals.join(' ')} — total ${fmt(primary.totalMs)}, wall ${fmt(primary.wallMs)}, cpu ${fmt(primary.cpuMs)}, ${primary.moduleCount} module(s), status ${primary.status}`);
-  appendSummary([
+  await appendSummary([
     `#### mvn-lens report${files.length > 1 ? 's' : ''} — ${escapeMd(where)}`,
     primary ? `Maven \`${primary.goals.join(' ')}\` · **${fmt(primary.totalMs)}** total · wall ${fmt(primary.wallMs)} · CPU ${fmt(primary.cpuMs)} · GC ${fmt(primary.gcMs)} · ${primary.moduleCount} module(s) · ${primary.status}` : '(no embedded model)',
     `Uploaded as artifact \`${artifactName}\` for the build dashboard.`,

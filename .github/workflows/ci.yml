@@ -23,9 +23,15 @@ jobs:
         with:
           node-version: '20'
       - run: node --version
+      - run: npm ci
+      - name: Bundle — dist/ is committed and must match the sources
+        shell: bash
+        run: |
+          npm run build
+          git diff --exit-code --stat -- dist || { echo '::error::dist/ is stale: run `npm run build` and commit the result'; exit 1; }
       - name: Unit tests
         run: npm test
-      - name: Syntax check (action sources run un-bundled on the runner's Node; 20 is the floor)
+      - name: Syntax check (sources and bundles parse on Node 20; manifests point at existing scripts)
         run: npm run lint
 
   # The action, run against this very repository (no publish): proves the API

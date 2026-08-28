@@ -255,7 +255,7 @@ async function run() {
   setOutput('published', published.pushed ? 'true' : 'false');
   setOutput('commit-sha', published.sha || '');
 
-  appendSummary([
+  await appendSummary([
     `### Build dashboard`,
     '',
     siteUrl ? `Site: ${siteUrl}` : `Site written to \`${siteDir}\``,
