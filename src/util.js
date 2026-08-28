@@ -6,35 +6,35 @@
 
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
+const core = require('@actions/core');
 
 // ---------------------------------------------------------------------------
-// Action inputs / outputs (no @actions/core dependency: the runner passes
-// inputs as INPUT_<NAME> environment variables and reads outputs from the
-// file named by $GITHUB_OUTPUT).
+// Action inputs / outputs / logging: thin wrappers over @actions/core (GitHub's
+// toolkit, bundled into dist/ by `npm run build`; the runner executes the
+// bundle, nothing is installed at run time).
 // ---------------------------------------------------------------------------
 
 /**
- * Reads an action input. The runner uppercases the input name and replaces
- * spaces with underscores; hyphens are kept ("github-token" -> INPUT_GITHUB-TOKEN).
- * Composite actions must forward inputs explicitly through `env:`, and there a
- * hyphen is awkward, so INPUT_GITHUB_TOKEN is accepted as an alias.
+ * Reads an action input via @actions/core. The runner uppercases the input name
+ * and replaces spaces with underscores; hyphens are kept ("github-token" ->
+ * INPUT_GITHUB-TOKEN). Composite actions must forward inputs explicitly through
+ * `env:`, and there a hyphen is awkward, so the underscore spelling
+ * (INPUT_GITHUB_TOKEN) is accepted as an alias — @actions/core alone does not.
+ * Supports `required`, `default` and `trimWhitespace`.
  */
 function getInput(name, opts) {
   const o = opts || {};
-  const upper = name.toUpperCase().replace(/ /g, '_');
-  const candidates = ['INPUT_' + upper, 'INPUT_' + upper.replace(/-/g, '_')];
-  let raw;
-  for (const c of candidates) {
-    if (process.env[c] !== undefined && process.env[c] !== '') { raw = process.env[c]; break; }
-  }
-  if (raw === undefined) {
+  const coreOpts = { required: false, trimWhitespace: o.trimWhitespace !== false };
+  let raw = core.getInput(name, coreOpts);
+  if (raw === '' && name.includes('-')) raw = core.getInput(name.replace(/-/g, '_'), coreOpts);
+  if (raw === '') {
     if (o.required) throw new Error(`Input required and not supplied: ${name}`);
     return o.default === undefined ? '' : o.default;
   }
-  return o.trimWhitespace === false ? raw : raw.trim();
+  return raw;
 }
 
+/** Lenient boolean (true/yes/1/on, false/no/0/off); core.getBooleanInput only accepts true/false. */
 function getBooleanInput(name, def) {
   const v = getInput(name, { default: def === undefined ? '' : String(def) }).toLowerCase();
   if (v === '') return !!def;
@@ -58,34 +58,29 @@ function parseList(value) {
   return String(value).split(/[\n,]/).map(s => s.trim()).filter(Boolean);
 }
 
+/** Sets a step output ($GITHUB_OUTPUT; outside a runner core prints a `::set-output` line). */
 function setOutput(name, value) {
-  const file = process.env.GITHUB_OUTPUT;
-  const str = value === undefined || value === null ? '' : String(value);
-  if (!file) { log(`[output] ${name}=${str}`); return; }
-  const delim = 'ghadelimiter_' + Math.random().toString(36).slice(2);
-  fs.appendFileSync(file, `${name}<<${delim}${os.EOL}${str}${os.EOL}${delim}${os.EOL}`);
+  core.setOutput(name, value === undefined || value === null ? '' : String(value));
 }
 
-function appendSummary(markdown) {
-  const file = process.env.GITHUB_STEP_SUMMARY;
-  if (!file) return;
-  fs.appendFileSync(file, markdown + os.EOL);
+/** Appends Markdown to the job summary ($GITHUB_STEP_SUMMARY); a no-op outside a runner. */
+async function appendSummary(markdown) {
+  if (!process.env.GITHUB_STEP_SUMMARY) return;
+  await core.summary.addRaw(markdown, true).write();
 }
 
 // ---------------------------------------------------------------------------
-// Logging (GitHub workflow commands when running on a runner)
+// Logging (workflow commands; @actions/core escapes them)
 // ---------------------------------------------------------------------------
 
-function escapeData(s) {
-  return String(s).replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
-}
-function log(msg) { process.stdout.write(String(msg) + '\n'); }
-function debug(msg) { if (process.env.RUNNER_DEBUG === '1' || process.env.BUILD_DASHBOARD_DEBUG) log('[debug] ' + msg); }
-function warning(msg) { process.stdout.write(`::warning::${escapeData(msg)}\n`); }
-function notice(msg) { process.stdout.write(`::notice::${escapeData(msg)}\n`); }
-function error(msg) { process.stdout.write(`::error::${escapeData(msg)}\n`); }
-function group(title) { process.stdout.write(`::group::${escapeData(title)}\n`); }
-function endGroup() { process.stdout.write('::endgroup::\n'); }
+function log(msg) { core.info(String(msg)); }
+/** `::debug::` lines (shown by "Re-run with debug logging" / RUNNER_DEBUG=1); BUILD_DASHBOARD_DEBUG prints them plainly for local runs. */
+function debug(msg) { if (process.env.BUILD_DASHBOARD_DEBUG) core.info('[debug] ' + msg); else core.debug(String(msg)); }
+function warning(msg) { core.warning(String(msg)); }
+function notice(msg) { core.notice(String(msg)); }
+function error(msg) { core.error(String(msg)); }
+function group(title) { core.startGroup(String(title)); }
+function endGroup() { core.endGroup(); }
 
 // ---------------------------------------------------------------------------
 // Files
@@ -121,7 +116,7 @@ function isWithin(base, target) {
 
 /** Asks the runner to mask a value in the job log (GitHub only masks the literal secret it knows). */
 function addMask(value) {
-  if (value && process.env.GITHUB_ACTIONS) process.stdout.write(`::add-mask::${escapeData(value)}\n`);
+  if (value && process.env.GITHUB_ACTIONS) core.setSecret(String(value));
 }
 
 /** Lists files under dir (relative POSIX paths). */

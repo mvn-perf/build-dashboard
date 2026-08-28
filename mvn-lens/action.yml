@@ -87,7 +87,7 @@ runs:
         INPUT_INCLUDE_MODEL: ${{ inputs.include-model }}
         INPUT_IF_NO_FILES_FOUND: ${{ inputs.if-no-files-found }}
         INPUT_ARTIFACT_PREFIX: ${{ inputs.artifact-prefix }}
-      run: node "${{ github.action_path }}/attach.js"
+      run: node "${{ github.action_path }}/../dist/attach.js"
 
     - name: Upload mvn-lens report artifact
       if: ${{ steps.prepare.outputs.found == 'true' && inputs.retention-days != '' }}
