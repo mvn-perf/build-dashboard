@@ -60,7 +60,9 @@ h3 { font-size: 14px; color: var(--ink-2); }
 /* ---- shell ---------------------------------------------------------------- */
 .top { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; padding: 12px 24px; background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 5; }
 .top .brand { display: flex; align-items: baseline; gap: 10px; }
-.top .brand a.title { color: var(--ink); font-weight: 700; font-size: 16px; }
+.top .brand a.home { color: var(--ink-2); font-weight: 700; font-size: 16px; }
+.top .brand .title { color: var(--ink); font-weight: 700; font-size: 16px; }
+.top .brand .sep { color: var(--ink-2); }
 .top .brand .repo { color: var(--ink-2); }
 .top nav { display: flex; gap: 4px; margin-left: 8px; }
 .top nav a { padding: 6px 10px; border-radius: 8px; color: var(--ink-2); }

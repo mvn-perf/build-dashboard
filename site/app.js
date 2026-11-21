@@ -792,7 +792,7 @@
     app.innerHTML = '';
     var nav = h('nav', null, [h('a', { href: '#/', 'data-route': 'overview', text: 'Overview' }), h('a', { href: '#/maven', 'data-route': 'maven', text: 'Maven builds' })]);
     app.appendChild(h('header', { class: 'top' }, [
-      h('div', { class: 'brand' }, [h('a', { class: 'title', href: '#/', text: META.title || 'Build dashboard' }), REPO ? h('span', { class: 'repo' }, REPO_URL ? link(REPO_URL, REPO, null, true) : REPO) : null]),
+      h('div', { class: 'brand' }, [h('a', { class: 'home', href: '/', text: (REPO ? REPO.split('/')[0] + ' ' : '') + 'Home' }), h('span', { class: 'sep', text: '›' }), h('span', { class: 'title', text: 'CI dashboard' + (REPO ? ' for' : '') }), REPO ? h('span', { class: 'repo' }, REPO_URL ? link(REPO_URL, REPO, null, true) : REPO) : null]),
       nav,
       h('div', { class: 'meta', title: META.generatedAt || '' }, ['Updated ', META.generatedAt ? fmtRel(Date.parse(META.generatedAt)) + ' · ' + fmtDate(Date.parse(META.generatedAt)) : '—']),
     ]));
@@ -826,7 +826,7 @@
     if (DATA.parseError) view.appendChild(h('p', { class: 'empty', text: 'The embedded dataset could not be parsed: ' + DATA.parseError }));
     view.appendChild(content);
     Array.prototype.forEach.call(navEl.querySelectorAll('a'), function (a) { a.classList.toggle('active', a.getAttribute('data-route') === route); });
-    document.title = (META.title || 'Build dashboard');
+    document.title = (META.title || 'CI dashboard');
     try { window.scrollTo(0, 0); } catch (e) { /* non-browser environments */ }
   }
 
