@@ -141,6 +141,7 @@
   function runState(r) { return r.status === 'completed' ? (r.conclusion || 'neutral') : 'running'; }
   function stateLabel(s) { return { success: 'Success', failure: 'Failed', cancelled: 'Cancelled', skipped: 'Skipped', timed_out: 'Timed out', running: 'Running', neutral: 'Neutral', action_required: 'Action required', startup_failure: 'Startup failure', stale: 'Stale' }[s] || s; }
   function badge(state) { return h('span', { class: 'badge ' + state }, [h('span', { class: 'dot' }), stateLabel(state)]); }
+  function workflowSourceUrl(path) { return REPO_URL + '/blob/' + encodeURIComponent(DATA.defaultBranch || 'HEAD') + '/' + path.split('/').map(encodeURIComponent).join('/'); }
   function link(href, text, cls, external) { return h('a', { href: href, class: cls || null, target: external ? '_blank' : null, rel: external ? 'noopener' : null }, text); }
   function runHref(r) { return '#/run/' + r.id; }
   function workflowHref(id) { return '#/workflow/' + id; }
@@ -431,7 +432,7 @@
       var card = h('div', { class: 'card' }, [
         h('div', { class: 'card-head' }, [
           h('h2', null, h('a', { href: workflowHref(id), text: wf.name || wf.path || ('workflow ' + id) })),
-          h('span', { class: 'dim small', text: wf.path || '' }),
+          REPO_URL && wf.path ? link(workflowSourceUrl(wf.path), wf.path, 'dim small', true) : h('span', { class: 'dim small', text: wf.path || '' }),
           h('div', { class: 'stats' }, [
             h('span', null, [h('b', { text: String(wruns.length) }), ' runs']),
             h('span', null, ['median ', h('b', { text: fmtMs(median(d)) })]),
@@ -460,7 +461,7 @@
     var frag = document.createDocumentFragment();
     frag.appendChild(crumbs([['#/', 'Overview'], [null, wf.name || wf.path]]));
     frag.appendChild(h('div', { class: 'page-head' }, [
-      h('div', { class: 'grow' }, [h('h1', { text: wf.name || wf.path }), h('div', { class: 'sub' }, [h('code', { text: wf.path || '' }), REPO_URL && wf.path ? [' · ', link(REPO_URL + '/actions/workflows/' + wf.path.split('/').pop(), 'GitHub Actions ↗', null, true)] : null])]),
+      h('div', { class: 'grow' }, [h('h1', { text: wf.name || wf.path }), h('div', { class: 'sub' }, [REPO_URL && wf.path ? link(workflowSourceUrl(wf.path), h('code', { text: wf.path }), null, true) : h('code', { text: wf.path || '' }), REPO_URL && wf.path ? [' · ', link(REPO_URL + '/actions/workflows/' + wf.path.split('/').pop(), 'GitHub Actions ↗', null, true)] : null])]),
     ]));
     frag.appendChild(renderFilters(runs.length + ' run' + (runs.length === 1 ? '' : 's')));
     if (!runs.length) { frag.appendChild(h('p', { class: 'empty', text: 'No runs match the current filters.' })); return frag; }
